@@ -1,33 +1,41 @@
 import pyautogui
+import cv2
+import numpy as np
 from PIL import ImageGrab
 from time import sleep
 
 def main():
     pyautogui.FAILSAFE = False
-    def hasNoOneReplied():
-        darkColorOfThePost = ImageGrab.grab(bbox=(789, 689, 790, 690)).load()[0,0] == (24, 37, 51)
-        blueColorNextToTheDarkColor = ImageGrab.grab(bbox=(816, 696, 817, 697)).load()[0,0] == (106, 178, 242)
-        if darkColorOfThePost and blueColorNextToTheDarkColor:
-            return True
+    def identifyCoordinateOfTarget(screen, target):
+        target = cv2.imread(target)
+        result = cv2.matchTemplate(screen, target, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        if max_val > 0.8:  # Adjust threshold for better/worse matches
+            top_left = max_loc
+            bottom_right = (top_left[0] + target.shape[1], top_left[1] + target.shape[0])
+            center = ((top_left[0]+bottom_right[0])/2, (top_left[1]+bottom_right[1])/2)
+            return center
         else: return False
-    
-    # Waiting for the next post that noone has commented it yet
-    temp_ = hasNoOneReplied()
-    while not temp_:
-        sleep(2)
-        temp_ = hasNoOneReplied()
 
-    # To enter the discussion
-    pyautogui.click(790, 690, button='left')
-    sleep(10) # Waiting exception to internet slowness
-    
-    # Typing
-    pyautogui.typewrite("I'm 1 all the time")
-    pyautogui.press('enter')
-    
-    # Go back to the channel
-    pyautogui.click(780, 120, button='left')
-    print("Succeeded")
+    def sendMessage(text):
+        pyautogui.typewrite(text)
+        pyautogui.press('enter')
+        quit()
+        
+    screen = cv2.cvtColor(np.array(ImageGrab.grab()), cv2.COLOR_RGB2BGR)
+
+    # Go down if the post remains below
+    goDown = identifyCoordinateOfTarget(screen, target="target1.png")
+    if goDown:
+        pyautogui.click(goDown[0], goDown[1], button='left')
+        sleep(2)
+        
+    # Click "Leave a comment" button
+    leaveComment = identifyCoordinateOfTarget(screen, target="target2.png")
+    if leaveComment:
+        pyautogui.click(leaveComment[0], leaveComment[1], button='left')
+        sleep(10)
+        sendMessage("1")
     
 if __name__ == '__main__':
     while True: main() # Repeat the algorithm infinitely
